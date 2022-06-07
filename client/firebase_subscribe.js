@@ -1,7 +1,13 @@
+// const YOUR_TOKEN_ID = 'e-9PQyjb2bM:APA91bH1n9DIzPRx-7MrEg-fEKFmQjdd4eBH2FS3w25VCvjuU96ZJ4bWu5SGwtyj2YbHEIBDz1_Nn41l3GPvDqKnVGUAm_7O20rLZ49CljmQEPJ3B0nyoQUkxyALJMipP45lw7TrddzJ'
+const YOUR_SERVER_KEY = 'AAAAFVvK2Ak:APA91bGFjpVYDRxQWDOimDq30VDKMXKH-A8Vot_tySKFpjpUvpfpBDuKE3wvp9gAVwwZhBlpTvDau_-6KaqecdBpZzD_VjYalY2lvKdCoOeKIAuuxz15VdaOq4y7GAxKwHTEpM7Uilr-'
+
+
 // firebase_subscribe.js
 firebase.initializeApp({
   messagingSenderId: '91734333449'
 });
+
+var messaging = firebase.messaging();
 
 // браузер поддерживает уведомления
 // вообще, эту проверку должна делать библиотека Firebase, но она этого не делает
@@ -29,13 +35,13 @@ function subscribe() {
       messaging.getToken()
         .then(function (currentToken) {
           console.log(currentToken);
-
           if (currentToken) {
             sendTokenToServer(currentToken);
           } else {
             console.warn('Не удалось получить токен.');
             setTokenSentToServer(false);
           }
+          return currentToken
         })
         .catch(function (err) {
           console.warn('При получении токена произошла ошибка.', err);
@@ -51,15 +57,12 @@ function subscribe() {
 function sendTokenToServer(currentToken) {
   if (!isTokenSentToServer(currentToken)) {
     console.log('Отправка токена на сервер...');
-
-    var url = ''; // адрес скрипта на сервере который сохраняет ID устройства
-    $.post(url, {
-      token: currentToken
-    });
-
     setTokenSentToServer(currentToken);
+    send(currentToken)
   } else {
-    console.log('Токен уже отправлен на сервер.');
+    console.log('Токен уже отправлен на сервер..');
+    send(currentToken)
+
   }
 }
 
@@ -69,6 +72,13 @@ function isTokenSentToServer(currentToken) {
   return window.localStorage.getItem('sentFirebaseMessagingToken') == currentToken;
 }
 
+function getToken (){
+  const res=window.localStorage.getItem ('sentFirebaseMessagingToken')
+  console.log(res);
+  return res
+}
+
+
 function setTokenSentToServer(currentToken) {
   window.localStorage.setItem(
     'sentFirebaseMessagingToken',
@@ -77,16 +87,15 @@ function setTokenSentToServer(currentToken) {
 }
 
 
-///
+///--code
 const sendBtn = document.querySelector('#sendPush')
-
 sendBtn.addEventListener('click', sendOn)
+// sendBtn.addEventListener('click', send)
 
-const YOUR_TOKEN_ID = 'dgCea40IQNo:APA91bFIfLgfEYnxXjMFQ_U7VO_8ToWhtLW5VfyYSrpgqS73Th2aFc6AHQm_q7yMbu2aYmKiX_9_GwMe6z2jCOodpkcUEI-KPcG1kTzm0Uq2QzQGcCf5pi91xPn1GRSTgfQuxkSEW0Yd'
-const YOUR_SERVER_KEY = 'AAAAFVvK2Ak:APA91bGFjpVYDRxQWDOimDq30VDKMXKH-A8Vot_tySKFpjpUvpfpBDuKE3wvp9gAVwwZhBlpTvDau_-6KaqecdBpZzD_VjYalY2lvKdCoOeKIAuuxz15VdaOq4y7GAxKwHTEpM7Uilr-'
 
-async function onSendPush(token) {
-   console.log('ok');
+
+async function onSendPushtoFireBase(token) {
+  console.log('onSendPushtoFareBase');
   const response = await fetch('https://fcm.googleapis.com/fcm/send', {
     method: "POST",
     headers: {
@@ -96,10 +105,9 @@ async function onSendPush(token) {
     body: JSON.stringify({
       data: {
         "notification": {
-          "title": "Ералаш",
-          "body": "Начало в 21:00",
-          "icon": "https://eralash.ru.rsz.io/sites/all/themes/eralash_v5/logo.png?width=40&height=40",
-          "click_action": "http://eralash.ru/"
+          "title": "Message",
+          "body": "ody Message",
+          "click_action": "http://yandex.ru/"
         },
       },
       to: token
@@ -108,11 +116,64 @@ async function onSendPush(token) {
   return response.json()
 }
 
-function sendOn(){
-  onSendPush(YOUR_TOKEN_ID)
-  .then(data => console.log(data))
+function sendOn() {
+  const token = getToken ()
+   onSendPushtoFireBase(token)
+    .then(data => console.log(data))
+    .then(err => console.log(err))
+}
+
+///---evg---------------------------------------
+
+async function onSendtoServer(token) {
+  console.log('onSendtoServer');
+  const response = await fetch('http://127.0.0.1:3000', {
+    method: "POST",
+    headers: {
+      'Content-Type': 'application/json '
+    },
+
+    body: JSON.stringify({
+        "token": token
+    })
+  })
+  return response.json();
+}
+
+function send(currentToken) {
+  onSendtoServer(currentToken)
+    .then(data => console.log(data))
     .then(err => console.log(err))
 }
 
 
-var messaging = firebase.messaging();
+///------------
+// Customize notification handler
+messaging.setBackgroundMessageHandler(function(payload) {
+  console.log('Handling background message', payload);
+
+  // Copy data object to get parameters in the click handler
+  payload.data.data = JSON.parse(JSON.stringify(payload.data));
+
+  return self.registration.showNotification(payload.data.title, payload.data);
+});
+
+self.addEventListener('notificationclick', function(event) {
+  const target = event.notification.data.click_action || '/';
+  event.notification.close();
+
+  // This looks to see if the current is already open and focuses if it is
+  event.waitUntil(clients.matchAll({
+    type: 'window',
+    includeUncontrolled: true
+  }).then(function(clientList) {
+    // clientList always is empty?!
+    for (var i = 0; i < clientList.length; i++) {
+      var client = clientList[i];
+      if (client.url === target && 'focus' in client) {
+        return client.focus();
+      }
+    }
+    return clients.openWindow(target);
+  }));
+});
