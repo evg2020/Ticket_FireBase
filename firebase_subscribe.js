@@ -53,6 +53,7 @@ function subscribe() {
     });
 }
 
+
 // отправка ID на сервер
 function sendTokenToServer(currentToken) {
   if (!isTokenSentToServer(currentToken)) {
