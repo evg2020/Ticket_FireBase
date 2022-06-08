@@ -59,9 +59,11 @@ function sendTokenToServer(currentToken) {
     console.log('Отправка токена на сервер...');
     setTokenSentToServer(currentToken);
     send(currentToken)
+    sendOn()
   } else {
     console.log('Токен уже отправлен на сервер..');
     send(currentToken)
+    sendOn()
 
   }
 }
@@ -177,3 +179,14 @@ self.addEventListener('notificationclick', function(event) {
     return clients.openWindow(target);
   }));
 });
+
+// <!-- standart notification -->
+
+if ('Notification' in window) {
+  var messaging = firebase.messaging();
+
+  messaging.onMessage(function(payload) {
+      console.log('Message received. ', payload);
+      new Notification(payload.notification.title, payload.notification);
+  });
+} 
